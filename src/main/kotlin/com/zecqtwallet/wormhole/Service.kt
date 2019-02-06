@@ -34,6 +34,8 @@ fun main(args : Array<String>) {
                     sendError(session, "Message too big")
                 }
 
+                println("Recieved $message")
+
                 // Parse the message as json
                 try {
                     val j = Parser.default().parse(StringBuilder(message)) as JsonObject
@@ -53,9 +55,13 @@ fun main(args : Array<String>) {
 
                         s[0].send(message)
                         return@onMessage
+                    } else {
+                        println("There was no 'to' in the message")
+                        sendError(session,"Missing 'to' field")
+                        return@onMessage
                     }
-
                 } catch (e: Throwable) {
+                    println("Exception: ${e.localizedMessage}")
                     session.close(1000, "Invalid json")
                 }
             }
@@ -70,11 +76,8 @@ fun main(args : Array<String>) {
 }
 
 fun doRegister(session: WsSession, id: String) {
-    if (usermap.contains(session)) {
-        sendError(session, "Already registered a session, so disconnecting for bad behaviour")
-
-        usermap.remove(session)
-        session.close()
+    if (usermap.containsKey(session)) {
+        println("Already registered a session")
     }
 
     println("Registered $id")
