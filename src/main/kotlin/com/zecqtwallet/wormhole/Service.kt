@@ -46,12 +46,14 @@ fun main(args : Array<String>) {
                     }
 
                     if (j.contains("to")) {
-                        val s = usermap.getKeys(j["to"].toString()).filter { it != session }
+                        val s = usermap.getKeys(j["to"].toString()).filter { it.id != session.id }
                         if (s.isEmpty()) {
                             // Not connected
                             sendError(session, "Peer is not connected")
                             return@onMessage
                         }
+
+                        println("Number of sessions matched: ${s.size}")
 
                         s[0].send(message)
                         return@onMessage
@@ -78,6 +80,7 @@ fun main(args : Array<String>) {
 fun doRegister(session: WsSession, id: String) {
     if (usermap.containsKey(session)) {
         println("Already registered a session")
+        return
     }
 
     println("Registered $id")
