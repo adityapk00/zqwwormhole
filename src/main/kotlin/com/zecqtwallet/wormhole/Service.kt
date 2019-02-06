@@ -59,6 +59,11 @@ fun main(args : Array<String>) {
                     session.close(1000, "Invalid json")
                 }
             }
+            
+            ws.onError { session, t ->
+                println("Something went wrong with session ${t.toString()}")
+                usermap.remove(session)
+            }
         }
     }.start(7070)
 
@@ -66,13 +71,13 @@ fun main(args : Array<String>) {
 
 fun doRegister(session: WsSession, id: String) {
     if (usermap.contains(session)) {
-        // TODO: Make JSON
-        sendError(session, "Already registered a session")
+        sendError(session, "Already registered a session, so disconnecting for bad behaviour")
 
         usermap.remove(session)
         session.close()
     }
 
+    println("Registered $id")
     usermap[session] = id
 }
 
