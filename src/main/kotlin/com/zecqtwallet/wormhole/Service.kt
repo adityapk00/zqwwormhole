@@ -5,10 +5,8 @@ import com.beust.klaxon.Parser
 import com.beust.klaxon.json
 import io.javalin.Javalin
 import io.javalin.websocket.WsSession
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 
 
 private val usermap = ConcurrentHashMap<WsSession, String>()
@@ -44,6 +42,12 @@ fun main(args : Array<String>) {
                 // Parse the message as json
                 try {
                     val j = Parser.default().parse(StringBuilder(message)) as JsonObject
+
+                    if (j.contains("ping")) {
+                        // Ignore, this is a keep-alive ping
+                        LOG.info("Ping ${usermap[session]}")
+                        return@onMessage
+                    }
 
                     if (j.contains("register")) {
                         doRegister(session, j["register"].toString())
