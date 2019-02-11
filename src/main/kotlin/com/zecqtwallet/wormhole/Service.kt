@@ -5,7 +5,10 @@ import com.beust.klaxon.Parser
 import com.beust.klaxon.json
 import io.javalin.Javalin
 import io.javalin.websocket.WsSession
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 
 
 private val usermap = ConcurrentHashMap<WsSession, String>()
@@ -14,17 +17,19 @@ private val usermap = ConcurrentHashMap<WsSession, String>()
 fun <K, V> Map<K, V>.getKeys(value: V) : List<K> =
     entries.filter { it.value == value } .map { it.key }
 
+val LOG = LoggerFactory.getLogger("Websocket")
 
 fun main(args : Array<String>) {
 
     Javalin.create().apply {
         ws("/") { ws ->
             ws.onConnect { session ->
-                println("Connected Session")
+                LOG.info("Connected Session")
+                session.idleTimeout = 5 * 60 * 1000 // 5 minutes
             }
 
             ws.onClose { session, status, message ->
-                println("Closed session")
+                LOG.info("Closed session ${usermap[session]}")
                 usermap.remove(session)
             }
 
@@ -34,7 +39,7 @@ fun main(args : Array<String>) {
                     sendError(session, "Message too big")
                 }
 
-                println("Recieved $message")
+                //println("Recieved $message")
 
                 // Parse the message as json
                 try {
@@ -53,23 +58,25 @@ fun main(args : Array<String>) {
                             return@onMessage
                         }
 
-                        println("Number of sessions matched: ${s.size}")
+                        if (s.size > 2) {
+                            LOG.warn("Warning, multiple sessions matched for ${j["to"].toString()}")
+                        }
 
                         s[0].send(message)
                         return@onMessage
                     } else {
-                        println("There was no 'to' in the message")
+                        LOG.warn("There was no 'to' in the message: $message")
                         sendError(session,"Missing 'to' field")
                         return@onMessage
                     }
                 } catch (e: Throwable) {
-                    println("Exception: ${e.localizedMessage}")
+                    LOG.error("Exception: ${e.localizedMessage}")
                     session.close(1000, "Invalid json")
                 }
             }
             
             ws.onError { session, t ->
-                println("Something went wrong with session ${t.toString()}")
+                LOG.error("Something went wrong with session ${t.toString()}")
                 usermap.remove(session)
             }
         }
@@ -79,16 +86,17 @@ fun main(args : Array<String>) {
 
 fun doRegister(session: WsSession, id: String) {
     if (usermap.containsKey(session)) {
-        println("Already registered a session")
+        LOG.warn("Already registered a session ${id}")
         return
     }
 
-    println("Registered $id")
+    LOG.info("Registered $id")
     usermap[session] = id
 }
 
 fun sendError(session: WsSession, err: String) {
     if (session.isOpen) {
+        LOG.info("Sending error: ${usermap[session]} -> $err")
         session.send(json { obj("error" to err) }.toJsonString())
     }
 }
