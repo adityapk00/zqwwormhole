@@ -46,6 +46,8 @@ fun main(args : Array<String>) {
                     if (j.contains("ping")) {
                         // Ignore, this is a keep-alive ping
                         LOG.info("Ping ${usermap[session]}")
+                        // Just send the ping back
+                        session.send(message)
                         return@onMessage
                     }
 
