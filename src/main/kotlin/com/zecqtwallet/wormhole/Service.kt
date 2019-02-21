@@ -26,7 +26,7 @@ fun main(args : Array<String>) {
                 session.idleTimeout = 5 * 60 * 1000 // 5 minutes
             }
 
-            ws.onClose { session, status, message ->
+            ws.onClose { session, _, _ ->
                 LOG.info("Closed session ${usermap[session]}")
                 usermap.remove(session)
             }
@@ -45,13 +45,14 @@ fun main(args : Array<String>) {
 
                     if (j.contains("ping")) {
                         // Ignore, this is a keep-alive ping
-                        LOG.info("Ping ${usermap[session]}")
+                        logInfo("Ping ${usermap[session]}", j)
                         // Just send the ping back
                         session.send(message)
                         return@onMessage
                     }
 
                     if (j.contains("register")) {
+                        logInfo("Register ${j["register"].toString()}", j)
                         doRegister(session, j["register"].toString())
                         return@onMessage
                     }
@@ -60,6 +61,7 @@ fun main(args : Array<String>) {
                         val s = usermap.getKeys(j["to"].toString()).filter { it.id != session.id }
                         if (s.isEmpty()) {
                             // Not connected
+                            logInfo("Error: Peer is not connected", j)
                             sendError(session, "Peer is not connected")
                             return@onMessage
                         }
@@ -68,6 +70,7 @@ fun main(args : Array<String>) {
                             LOG.warn("Warning, multiple sessions matched for ${j["to"].toString()}")
                         }
 
+                        logInfo("Routed message for ${j["to"].toString()}", j)
                         s[0].send(message)
                         return@onMessage
                     } else {
@@ -76,7 +79,7 @@ fun main(args : Array<String>) {
                         return@onMessage
                     }
                 } catch (e: Throwable) {
-                    LOG.error("Exception: ${e.localizedMessage}")
+                    LOG.error("Exception: ${e.localizedMessage}, Message was: $message")
                     session.close(1000, "Invalid json")
                 }
             }
@@ -92,17 +95,24 @@ fun main(args : Array<String>) {
 
 fun doRegister(session: WsSession, id: String) {
     if (usermap.containsKey(session)) {
-        LOG.warn("Already registered a session ${id}")
+        LOG.warn("Already registered a session $id")
         return
     }
 
-    LOG.info("Registered $id")
     usermap[session] = id
 }
 
 fun sendError(session: WsSession, err: String) {
     if (session.isOpen) {
-        LOG.info("Sending error: ${usermap[session]} -> $err")
         session.send(json { obj("error" to err) }.toJsonString())
     }
+}
+
+fun logInfo(t: String, j: JsonObject) {
+    val l = j.map {
+        val s = it.value.toString()
+        it.key to if (s.length > 10) s.take(10) + "...{" + s.length + "}" else s
+    }.toString().replace("\n", "").trim()
+
+    LOG.info(t + l)
 }
