@@ -35,6 +35,7 @@ fun main(args : Array<String>) {
                 // Limit message size to 50kb of hex encoded text
                 if (message.length > 2 * 50 * 1024) {
                     sendError(session, "Message too big")
+                    return@onMessage
                 }
 
                 //println("Recieved $message")
@@ -45,7 +46,6 @@ fun main(args : Array<String>) {
 
                     if (j.contains("ping")) {
                         // Ignore, this is a keep-alive ping
-                        logInfo("Ping ${usermap[session]}", j)
                         // Just send the ping back
                         session.send(message)
                         return@onMessage
